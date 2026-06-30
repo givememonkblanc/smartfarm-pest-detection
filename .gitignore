@@ -1,0 +1,15 @@
+# 데이터셋 — GitHub Release 에셋으로 배포 (레포에는 미포함)
+Pests/
+*.zip
+
+# 학습 산출물 / 사전학습 가중치
+runs/
+*.pt
+
+# 파이썬 캐시
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
