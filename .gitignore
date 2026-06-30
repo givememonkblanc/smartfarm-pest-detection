@@ -1,15 +1,27 @@
-# 데이터셋 — GitHub Release 에셋으로 배포 (레포에는 미포함)
+# === 대용량 데이터 (GitHub Release 에셋으로 배포) ===
 Pests/
 *.zip
+# 사용자 CCTV 데이터(2GB) — 레포 제외
+project/
 
-# 학습 산출물 / 사전학습 가중치
+# === 학습 산출물 / 사전학습 가중치 ===
 runs/
 *.pt
+# 단, 배포용 학습 가중치(weights/)는 커밋
+!weights/
+!weights/*.pt
 
-# 파이썬 캐시
+# === 강의 슬라이드 (레포에 올리지 않음) ===
+slides/
+
+# === 앱 런타임 산출물 ===
+app/data.db
+app/uploads/
+reference_project/service.db
+reference_project/uploads/
+
+# === 파이썬/OS ===
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-
-# OS
 .DS_Store

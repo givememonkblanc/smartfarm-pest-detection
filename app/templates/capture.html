@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>📷 해충 촬영 진단</title>
+<style>
+  :root{--green:#2e7d32; --green-d:#1b5e20; --bg:#f6f9f5; --line:#d7e3da; --warn:#c62828;}
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; color:#1f2a24;}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green)); color:#fff; padding:18px 20px; font-size:18px; font-weight:700;}
+  main{max-width:520px; margin:0 auto; padding:18px;}
+  .card{background:#fff; border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,.05);}
+  label.upload{display:block; text-align:center; padding:40px 16px; border:2px dashed var(--green); border-radius:12px; color:var(--green-d); font-weight:600; cursor:pointer;}
+  input[type=file]{display:none;}
+  button{width:100%; padding:14px; margin-top:12px; background:var(--green); color:#fff; border:0; border-radius:12px; font-size:16px; font-weight:700;}
+  button:disabled{background:#9bbfa0;}
+  canvas{width:100%; border-radius:12px; display:none; margin-top:6px;}
+  .badge{display:inline-block; padding:6px 16px; border-radius:999px; font-weight:700; font-size:18px;}
+  .ok{background:#e8f5e9; color:var(--green-d);}
+  .bad{background:#ffebee; color:var(--warn);}
+  .row{display:flex; justify-content:space-between; padding:6px 0; border-bottom:1px dashed var(--line);}
+  a.link{display:block; text-align:center; margin-top:8px; color:var(--green-d); font-weight:600;}
+  .muted{color:#5b6b62; font-size:14px;}
+</style>
+</head>
+<body>
+<header>📷 농작물 해충 촬영 진단</header>
+<main>
+  <div class="card">
+    <label class="upload" for="file">📸 사진 촬영 / 선택<br><span class="muted">잎을 가까이 찍어 주세요</span></label>
+    <input type="file" id="file" accept="image/*" capture="environment">
+    <canvas id="canvas"></canvas>
+    <button id="go" disabled>🔍 진단하기</button>
+  </div>
+
+  <div class="card" id="result" style="display:none;">
+    <div id="status"></div>
+    <div id="list" style="margin-top:12px;"></div>
+  </div>
+
+  <a class="link" href="/dashboard">📊 전체 진단 이력 보기 →</a>
+</main>
+
+<script>
+const fileEl = document.getElementById('file');
+const canvas = document.getElementById('canvas');
+const goBtn  = document.getElementById('go');
+const ctx    = canvas.getContext('2d');
+let picked = null;
+const COLORS = {Aphids:'#2ea043', Thrips:'#ff8f00', Whiteflies:'#2176dc'};
+
+fileEl.addEventListener('change', e => {
+  picked = e.target.files[0];
+  if (!picked) return;
+  const img = new Image();
+  img.onload = () => {
+    canvas.width = img.width; canvas.height = img.height;
+    canvas.style.display = 'block';
+    ctx.drawImage(img, 0, 0);
+  };
+  img.src = URL.createObjectURL(picked);
+  goBtn.disabled = false;
+});
+
+goBtn.addEventListener('click', async () => {
+  if (!picked) return;
+  goBtn.disabled = true; goBtn.textContent = '⏳ 진단 중...';
+  const fd = new FormData();
+  fd.append('image', picked);
+  try {
+    const res = await fetch('/predict', {method:'POST', body:fd});
+    const data = await res.json();
+    showResult(data);
+  } catch (err) {
+    alert('서버 연결 실패: ' + err);
+  }
+  goBtn.disabled = false; goBtn.textContent = '🔍 진단하기';
+});
+
+function showResult(data){
+  // 결과 이미지를 다시 그려 박스 표시
+  const img = new Image();
+  img.onload = () => {
+    canvas.width = img.width; canvas.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    ctx.lineWidth = Math.max(2, img.width/250);
+    ctx.font = `${Math.max(14,img.width/35)}px sans-serif`;
+    for (const d of data.detections){
+      const [x1,y1,x2,y2] = d.bbox;
+      const col = COLORS[d.class] || '#e53935';
+      ctx.strokeStyle = col; ctx.strokeRect(x1,y1,x2-x1,y2-y1);
+      ctx.fillStyle = col; ctx.fillText(d.class, x1+2, Math.max(14,y1-4));
+    }
+  };
+  img.src = '/uploads/' + data.image;
+
+  const resultCard = document.getElementById('result');
+  resultCard.style.display = 'block';
+  const ok = data.status === '정상';
+  document.getElementById('status').innerHTML =
+    `<span class="badge ${ok?'ok':'bad'}">${ok?'✅ 정상':'⚠️ 이상 (해충 '+data.pest_count+'마리)'}</span>`;
+
+  let html = '';
+  if (Object.keys(data.classes).length === 0){
+    html = '<p class="muted">탐지된 해충이 없습니다.</p>';
+  } else {
+    for (const [name,cnt] of Object.entries(data.classes)){
+      html += `<div class="row"><b>${name}</b><span>${cnt}마리</span></div>`;
+    }
+  }
+  document.getElementById('list').innerHTML = html;
+}
+</script>
+</body>
+</html>

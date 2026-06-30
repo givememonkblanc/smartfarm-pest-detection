@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W-02 · 상세</title>
+<style>
+  :root{--green:#2e7d32;--green-d:#1b5e20;--warn:#c62828;--blue:#2176dc;--bg:#f6f9f5;--line:#d7e3da;--muted:#5b6b62;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;color:#1f2a24;}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green));color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;}
+  header h1{font-size:19px;} header a{color:#fff;text-decoration:none;font-weight:600;font-size:14px;}
+  main{max-width:1100px;margin:0 auto;padding:20px;}
+  .verdict{display:inline-block;padding:5px 16px;border-radius:999px;font-weight:800;font-size:16px;margin-bottom:14px;}
+  .ok{background:#e8f5e9;color:var(--green-d);} .bad{background:#ffebee;color:var(--warn);}
+  .grid{display:grid;grid-template-columns:1.4fr 1fr;gap:18px;}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px;}
+  .panel h3{font-size:14px;color:var(--green-d);margin-bottom:10px;}
+  .compare{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .compare figure{margin:0;} .compare img{width:100%;border-radius:8px;border:1px solid var(--line);display:block;}
+  .compare figcaption{font-size:12px;color:var(--muted);text-align:center;margin-top:5px;}
+  table{width:100%;border-collapse:collapse;} th,td{padding:8px 10px;font-size:13px;border-bottom:1px solid var(--line);text-align:left;}
+  th{background:#f3f8f3;color:var(--green-d);}
+  .meta div{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px dashed var(--line);font-size:13px;}
+  .meta .k{color:var(--muted);}
+  textarea{width:100%;min-height:90px;border:1px solid var(--line);border-radius:9px;padding:10px;font-size:14px;font-family:inherit;resize:vertical;}
+  .btns{display:flex;gap:10px;margin-top:10px;}
+  button{flex:1;padding:11px;border:0;border-radius:10px;font-weight:700;cursor:pointer;font-size:14px;}
+  .save{background:var(--green);color:#fff;} .list{background:#fff;color:var(--green-d);border:1px solid var(--green);}
+  .pill{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;}
+</style>
+</head>
+<body>
+<header><h1>🔎 분석 상세 (W-02)</h1><a href="/dashboard">← 목록으로</a></header>
+<main>
+  <div class="verdict" id="verdict">…</div>
+  <div class="grid">
+    <div>
+      <div class="panel">
+        <h3>🖼 원본 / 분석 결과 비교</h3>
+        <div class="compare">
+          <figure><img id="orig"><figcaption>원본</figcaption></figure>
+          <figure><img id="result"><figcaption>분석 결과 (BBox)</figcaption></figure>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>🐛 상세 탐지 정보</h3>
+        <table><thead><tr><th>해충</th><th>신뢰도</th><th>좌표 (x, y, w, h)</th></tr></thead>
+        <tbody id="dets"></tbody></table>
+      </div>
+    </div>
+    <div>
+      <div class="panel">
+        <h3>📋 메타데이터</h3>
+        <div class="meta" id="meta"></div>
+      </div>
+      <div class="panel">
+        <h3>📝 관리자 메모 / 조치사항</h3>
+        <textarea id="memo" placeholder="현장 확인 결과, 방제 조치 등을 입력하세요"></textarea>
+        <div class="btns">
+          <button class="save" id="save">💾 저장</button>
+          <button class="list" onclick="location.href='/dashboard'">목록으로</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+const HID={{ hid }};
+const KO={APHID:'진딧물',THRIPS:'총채벌레',WHITEFLY:'가루이'};
+const COL={APHID:'#2ea043',THRIPS:'#ff8f00',WHITEFLY:'#2176dc'};
+
+async function load(){
+  const d=await (await fetch('/api/v1/dashboard/history/'+HID)).json();
+  const ok=d.status==='NORMAL';
+  const v=document.getElementById('verdict'); v.className='verdict '+(ok?'ok':'bad');
+  v.textContent=ok?'✅ 정상':'⚠️ 이상';
+  document.getElementById('orig').src=d.original_image_url;
+  document.getElementById('result').src=d.result_image_url||d.original_image_url;
+  document.getElementById('dets').innerHTML=d.detections.map(x=>{
+    const b=x.bounding_box;
+    return `<tr><td><span class="pill" style="background:${COL[x.pest_type]}"></span>${KO[x.pest_type]||x.pest_type}</td>
+      <td>${Math.round(x.confidence_score*100)}%</td><td>(${b.x}, ${b.y}, ${b.w}, ${b.h})</td></tr>`;
+  }).join('')||'<tr><td colspan="3" style="color:#999">탐지 없음</td></tr>';
+  document.getElementById('meta').innerHTML=`
+    <div><span class="k">분석 ID</span><b>#${d.history_id}</b></div>
+    <div><span class="k">촬영 일시</span><span>${(d.captured_at||'').replace('T',' ')}</span></div>
+    <div><span class="k">저장 일시</span><span>${(d.created_at||'').replace('T',' ')}</span></div>
+    <div><span class="k">기기 정보</span><span>${(d.device_info||'-').slice(0,40)}</span></div>
+    <div><span class="k">최종 저장</span><span>${d.saved?'✅':'임시'}</span></div>`;
+  document.getElementById('memo').value=d.admin_memo||'';
+}
+document.getElementById('save').addEventListener('click',async()=>{
+  await fetch('/api/v1/dashboard/history/'+HID+'/memo',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({memo:document.getElementById('memo').value})});
+  alert('메모가 저장되었습니다.');
+});
+load();
+</script>
+</body>
+</html>

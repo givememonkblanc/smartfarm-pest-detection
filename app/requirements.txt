@@ -1,0 +1,3 @@
+flask>=3.0
+ultralytics>=8.4.0
+# torch 는 ultralytics 가 끌어오지만, GPU 사용 시 본인 환경에 맞는 빌드를 설치하세요.

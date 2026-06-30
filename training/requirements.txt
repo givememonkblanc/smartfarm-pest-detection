@@ -1,0 +1,5 @@
+ultralytics>=8.4.0
+torch>=2.0
+# GPU 사용 시: 본인 환경에 맞는 torch 빌드를 설치하세요.
+#   NVIDIA(CUDA):  https://pytorch.org 에서 cu12x 빌드
+#   AMD(ROCm)   :  pip install torch --index-url https://download.pytorch.org/whl/rocm6.2

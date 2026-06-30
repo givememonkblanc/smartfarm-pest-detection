@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>M-01 · 촬영/업로드</title>
+<style>
+  :root{--green:#2e7d32;--green-d:#1b5e20;--bg:#f6f9f5;--line:#d7e3da;--muted:#5b6b62;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;color:#1f2a24;}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green));color:#fff;padding:16px 20px;font-size:17px;font-weight:700;}
+  main{max-width:520px;margin:0 auto;padding:18px;}
+  .viewfinder{position:relative;background:#0d130f;border-radius:16px;aspect-ratio:3/4;overflow:hidden;display:flex;align-items:center;justify-content:center;}
+  .viewfinder img{width:100%;height:100%;object-fit:cover;}
+  .guide{position:absolute;inset:14%;border:2px dashed rgba(255,255,255,.8);border-radius:14px;display:flex;align-items:flex-end;justify-content:center;padding-bottom:10px;}
+  .guide span{color:#fff;font-size:13px;background:rgba(0,0,0,.4);padding:4px 10px;border-radius:999px;}
+  .ph{color:#9fb4a3;font-size:40px;}
+  .tip{text-align:center;color:var(--muted);font-size:14px;margin:14px 0;}
+  button,.filebtn{display:block;width:100%;padding:15px;margin-top:10px;border:0;border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;text-align:center;}
+  .primary{background:var(--green);color:#fff;}
+  .ghost{background:#fff;color:var(--green-d);border:1px solid var(--green);}
+  input[type=file]{display:none;}
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;flex-direction:column;color:#fff;gap:14px;}
+  .spin{width:46px;height:46px;border:4px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:s 1s linear infinite;}
+  @keyframes s{to{transform:rotate(360deg);}}
+  a.dash{display:block;text-align:center;margin-top:14px;color:var(--green-d);font-weight:600;text-decoration:none;}
+</style>
+</head>
+<body>
+<header>📷 AI 해충 탐지 — 촬영/업로드</header>
+<main>
+  <div class="viewfinder">
+    <img id="preview" style="display:none;">
+    <div class="ph" id="ph">🌿</div>
+    <div class="guide"><span>잎사귀가 중앙에 오도록 촬영해주세요</span></div>
+  </div>
+  <p class="tip">작물 잎을 화면 가이드 안에 맞춰 촬영하세요</p>
+
+  <label class="filebtn primary" for="cam">📸 촬영하기</label>
+  <input type="file" id="cam" accept="image/*" capture="environment">
+  <label class="filebtn ghost" for="gallery">🖼 갤러리에서 불러오기</label>
+  <input type="file" id="gallery" accept="image/*">
+  <button class="primary" id="analyze" style="display:none;">🔍 분석 요청</button>
+
+  <a class="dash" href="/dashboard">📊 웹 대시보드 →</a>
+</main>
+
+<div class="overlay" id="overlay"><div class="spin"></div><div>AI 분석 중...</div></div>
+
+<script>
+let picked=null;
+const prev=document.getElementById('preview'), ph=document.getElementById('ph'), an=document.getElementById('analyze');
+function onPick(e){
+  picked=e.target.files[0]; if(!picked)return;
+  prev.src=URL.createObjectURL(picked); prev.style.display='block'; ph.style.display='none'; an.style.display='block';
+}
+document.getElementById('cam').addEventListener('change',onPick);
+document.getElementById('gallery').addEventListener('change',onPick);
+
+an.addEventListener('click',async()=>{
+  if(!picked)return;
+  document.getElementById('overlay').style.display='flex';
+  const fd=new FormData(); fd.append('image',picked); fd.append('device_info',navigator.userAgent.slice(0,60));
+  try{
+    const res=await fetch('/api/v1/analysis/upload',{method:'POST',body:fd});
+    const data=await res.json();
+    location.href='/result/'+data.history_id;     // M-02 로 이동
+  }catch(err){ alert('분석 실패: '+err); document.getElementById('overlay').style.display='none'; }
+});
+</script>
+</body>
+</html>

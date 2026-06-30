@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>M-02 · 분석 결과</title>
+<style>
+  :root{--green:#2e7d32;--green-d:#1b5e20;--warn:#c62828;--bg:#f6f9f5;--line:#d7e3da;--muted:#5b6b62;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;color:#1f2a24;}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green));color:#fff;padding:16px 20px;font-size:17px;font-weight:700;}
+  main{max-width:520px;margin:0 auto;padding:18px;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px;}
+  img.result{width:100%;border-radius:12px;display:block;}
+  .verdict{text-align:center;padding:14px;border-radius:12px;font-size:22px;font-weight:800;margin:14px 0;}
+  .ok{background:#e8f5e9;color:var(--green-d);} .bad{background:#ffebee;color:var(--warn);}
+  h3{font-size:15px;color:var(--green-d);margin-bottom:8px;}
+  .row{display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);}
+  .row:last-child{border:0;}
+  .conf{background:#eef4ee;border-radius:999px;padding:3px 10px;font-weight:700;font-size:14px;}
+  .pill{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:7px;}
+  button{flex:1;padding:14px;border:0;border-radius:13px;font-size:16px;font-weight:700;cursor:pointer;}
+  .btns{display:flex;gap:10px;margin-top:6px;}
+  .save{background:var(--green);color:#fff;} .retry{background:#fff;color:var(--green-d);border:1px solid var(--green);}
+  .muted{color:var(--muted);font-size:14px;}
+</style>
+</head>
+<body>
+<header>🔬 분석 결과</header>
+<main>
+  <div class="card"><img class="result" id="img" alt="분석 결과"></div>
+  <div class="verdict" id="verdict">…</div>
+  <div class="card">
+    <h3>검출 해충</h3>
+    <div id="list"></div>
+  </div>
+  <div class="btns">
+    <button class="save" id="save">💾 결과 저장</button>
+    <button class="retry" onclick="location.href='/'">↺ 재촬영</button>
+  </div>
+</main>
+
+<script>
+const HID={{ hid }};
+const KO={APHID:'진딧물',THRIPS:'총채벌레',WHITEFLY:'가루이'};
+const COL={APHID:'#2ea043',THRIPS:'#ff8f00',WHITEFLY:'#2176dc'};
+
+async function load(){
+  const d=await (await fetch('/api/v1/analysis/result/'+HID)).json();
+  document.getElementById('img').src=d.result_image_url||d.original_image_url;
+  const ok=d.status==='NORMAL';
+  const v=document.getElementById('verdict');
+  v.className='verdict '+(ok?'ok':'bad');
+  v.textContent=ok?'✅ 정상':'⚠️ 이상 ('+d.detections.length+'건 검출)';
+  // 해충별 집계
+  const agg={};
+  d.detections.forEach(x=>{(agg[x.pest_type]=agg[x.pest_type]||[]).push(x.confidence_score);});
+  const list=document.getElementById('list');
+  if(!d.detections.length){list.innerHTML='<p class="muted">검출된 해충이 없습니다.</p>';return;}
+  list.innerHTML=Object.entries(agg).map(([k,arr])=>{
+    const max=Math.round(Math.max(...arr)*100);
+    return `<div class="row"><span><span class="pill" style="background:${COL[k]}"></span><b>${KO[k]||k}</b> · ${arr.length}건</span><span class="conf">${max}%</span></div>`;
+  }).join('');
+}
+document.getElementById('save').addEventListener('click',async()=>{
+  await fetch('/api/v1/analysis/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({history_id:HID})});
+  alert('저장 완료되었습니다.'); location.href='/';
+});
+load();
+</script>
+</body>
+</html>

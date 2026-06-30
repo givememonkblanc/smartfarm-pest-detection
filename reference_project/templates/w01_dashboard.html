@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W-01 · 대시보드</title>
+<style>
+  :root{--green:#2e7d32;--green-d:#1b5e20;--warn:#c62828;--blue:#2176dc;--accent:#ff8f00;--bg:#f6f9f5;--line:#d7e3da;--muted:#5b6b62;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;color:#1f2a24;}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green));color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center;}
+  header h1{font-size:19px;} header a{color:#fff;text-decoration:none;font-weight:600;font-size:14px;}
+  main{max-width:1180px;margin:0 auto;padding:20px;}
+  .widgets{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:16px;}
+  .w{background:#fff;border:1px solid var(--line);border-radius:12px;padding:15px 18px;}
+  .w .n{font-size:26px;font-weight:800;color:var(--green-d);} .w .l{font-size:12px;color:var(--muted);}
+  .w.bad .n{color:var(--warn);}
+  .grid2{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;margin-bottom:16px;}
+  .panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;}
+  .panel h3{font-size:14px;color:var(--green-d);margin-bottom:12px;}
+  .chart{display:flex;align-items:flex-end;gap:6px;height:130px;}
+  .chart .bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;justify-content:flex-end;}
+  .chart .bar .b{width:70%;background:linear-gradient(var(--green),#66bb6a);border-radius:4px 4px 0 0;min-height:3px;}
+  .chart .bar .d{font-size:9px;color:var(--muted);transform:rotate(-40deg);white-space:nowrap;}
+  .pestbars{display:flex;flex-direction:column;gap:9px;}
+  .pb{display:flex;align-items:center;gap:9px;} .pb .nm{width:74px;font-size:13px;font-weight:700;}
+  .pb .track{flex:1;background:#eef3ee;border-radius:6px;height:18px;overflow:hidden;}
+  .pb .fill{height:100%;color:#fff;font-size:11px;font-weight:700;text-align:right;padding-right:6px;}
+  .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;}
+  .toolbar input,.toolbar select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;}
+  .toolbar button{padding:7px 14px;border:0;border-radius:8px;font-weight:700;cursor:pointer;font-size:13px;}
+  .apply{background:var(--green);color:#fff;} .excel{background:#217346;color:#fff;margin-left:auto;text-decoration:none;display:inline-block;}
+  table{width:100%;border-collapse:collapse;background:#fff;border:1px solid var(--line);border-radius:12px;overflow:hidden;}
+  th,td{padding:10px 12px;text-align:left;font-size:13px;border-bottom:1px solid var(--line);}
+  th{background:#f3f8f3;color:var(--green-d);} tr{cursor:pointer;} tr:hover td{background:#f6fbf6;}
+  td img{width:54px;height:40px;object-fit:cover;border-radius:6px;background:#eee;}
+  .badge{padding:2px 10px;border-radius:999px;font-weight:700;font-size:12px;}
+  .ok{background:#e8f5e9;color:var(--green-d);} .bad{background:#ffebee;color:var(--warn);}
+</style>
+</head>
+<body>
+<header><h1>📊 AI 해충 탐지 대시보드</h1><a href="/">📷 새 촬영 →</a></header>
+<main>
+  <div class="widgets">
+    <div class="w"><div class="n" id="total">-</div><div class="l">총 촬영 건수</div></div>
+    <div class="w bad"><div class="n" id="ratio">-</div><div class="l">이상 탐지 비율</div></div>
+    <div class="w"><div class="n" id="abn">-</div><div class="l">이상 건수</div></div>
+    <div class="w"><div class="n" id="top">-</div><div class="l">최다 발생 해충</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="panel"><h3>📈 일자별 발생 추이 (최근 14일)</h3><div class="chart" id="chart"></div></div>
+    <div class="panel"><h3>🐛 해충별 발생</h3><div class="pestbars" id="pestbars"></div></div>
+  </div>
+
+  <div class="toolbar">
+    <label>기간 <input type="date" id="from"> ~ <input type="date" id="to"></label>
+    <select id="pest"><option value="">해충 전체</option><option value="APHID">진딧물</option><option value="THRIPS">총채벌레</option><option value="WHITEFLY">가루이</option></select>
+    <select id="status"><option value="">판정 전체</option><option value="NORMAL">정상</option><option value="ABNORMAL">이상</option></select>
+    <button class="apply" onclick="loadHistory()">🔍 필터 적용</button>
+    <a class="excel" id="excel" href="#">⬇ 엑셀 다운로드</a>
+  </div>
+
+  <table>
+    <thead><tr><th>이미지</th><th>일시</th><th>탐지 해충</th><th>판정</th></tr></thead>
+    <tbody id="rows"></tbody>
+  </table>
+</main>
+
+<script>
+const KO={APHID:'진딧물',THRIPS:'총채벌레',WHITEFLY:'가루이'};
+const COL={APHID:'#2ea043',THRIPS:'#ff8f00',WHITEFLY:'#2176dc'};
+
+async function loadStats(){
+  const s=await (await fetch('/api/v1/dashboard/stats')).json();
+  total.textContent=s.total; ratio.textContent=s.abnormal_ratio+'%'; abn.textContent=s.abnormal;
+  const top=Object.entries(s.by_pest).sort((a,b)=>b[1]-a[1])[0];
+  document.getElementById('top').textContent=top?KO[top[0]]||top[0]:'-';
+  const max=Math.max(1,...s.trend.map(t=>t.count));
+  document.getElementById('chart').innerHTML=s.trend.map(t=>
+    `<div class="bar"><div class="b" style="height:${t.count/max*100}%"></div><div class="d">${t.date.slice(5)}</div></div>`).join('')||'<span style="color:#999">데이터 없음</span>';
+  const pmax=Math.max(1,...Object.values(s.by_pest));
+  document.getElementById('pestbars').innerHTML=Object.entries(s.by_pest).map(([k,v])=>
+    `<div class="pb"><span class="nm">${KO[k]||k}</span><div class="track"><div class="fill" style="width:${v/pmax*100}%;background:${COL[k]}">${v}</div></div></div>`).join('')||'<span style="color:#999">없음</span>';
+}
+function qs(){
+  const p=new URLSearchParams();
+  if(from.value)p.set('date_from',from.value); if(to.value)p.set('date_to',to.value);
+  if(pest.value)p.set('pest',pest.value); if(status.value)p.set('status',status.value);
+  return p.toString();
+}
+async function loadHistory(){
+  const rows=await (await fetch('/api/v1/dashboard/history?'+qs())).json();
+  document.getElementById('excel').href='/api/v1/dashboard/export?'+qs();
+  document.getElementById('rows').innerHTML=rows.map(r=>{
+    const ok=r.status==='NORMAL';
+    const pests=Object.entries(r.pest_summary).map(([k,v])=>`${KO[k]||k}×${v}`).join(', ')||'-';
+    return `<tr onclick="location.href='/dashboard/${r.history_id}'">
+      <td><img src="${r.result_image_url||r.original_image_url}"></td>
+      <td>${r.captured_at.replace('T',' ')}</td><td>${pests}</td>
+      <td><span class="badge ${ok?'ok':'bad'}">${ok?'정상':'이상'}</span></td></tr>`;
+  }).join('')||'<tr><td colspan="4" style="text-align:center;color:#999;padding:30px">기록이 없습니다</td></tr>';
+}
+loadStats(); loadHistory();
+</script>
+</body>
+</html>

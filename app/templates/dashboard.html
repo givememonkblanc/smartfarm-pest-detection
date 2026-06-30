@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📊 해충 진단 대시보드</title>
+<style>
+  :root{--green:#2e7d32; --green-d:#1b5e20; --bg:#f6f9f5; --line:#d7e3da; --warn:#c62828;}
+  *{box-sizing:border-box;}
+  body{margin:0; background:var(--bg); font-family:"Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif; color:#1f2a24;}
+  header{background:linear-gradient(135deg,var(--green-d),var(--green)); color:#fff; padding:18px 24px; display:flex; justify-content:space-between; align-items:center;}
+  header h1{font-size:20px; margin:0;}
+  header a{color:#fff; text-decoration:none; font-weight:600; font-size:14px;}
+  main{max-width:1100px; margin:0 auto; padding:22px;}
+  .stats{display:flex; gap:14px; margin-bottom:18px; flex-wrap:wrap;}
+  .stat{flex:1; min-width:150px; background:#fff; border:1px solid var(--line); border-radius:12px; padding:16px 18px;}
+  .stat .n{font-size:28px; font-weight:800; color:var(--green-d);}
+  .stat .l{font-size:13px; color:#5b6b62;}
+  .grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px;}
+  .item{background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden;}
+  .item img{width:100%; height:170px; object-fit:cover; display:block; background:#eee;}
+  .item .body{padding:12px 14px;}
+  .badge{display:inline-block; padding:3px 12px; border-radius:999px; font-weight:700; font-size:13px;}
+  .ok{background:#e8f5e9; color:var(--green-d);} .bad{background:#ffebee; color:var(--warn);}
+  .time{font-size:12px; color:#5b6b62; margin:8px 0 4px;}
+  .cls{font-size:13px; color:#1f2a24;}
+  .empty{text-align:center; color:#5b6b62; padding:60px;}
+</style>
+</head>
+<body>
+<header>
+  <h1>📊 농작물 해충 진단 대시보드</h1>
+  <a href="/">📷 새 촬영 진단 →</a>
+</header>
+<main>
+  <div class="stats">
+    <div class="stat"><div class="n" id="total">-</div><div class="l">총 진단 건수</div></div>
+    <div class="stat"><div class="n" id="abnormal">-</div><div class="l">이상(해충 발견)</div></div>
+    <div class="stat"><div class="n" id="pests">-</div><div class="l">누적 해충 마릿수</div></div>
+  </div>
+  <div class="grid" id="grid"></div>
+  <div class="empty" id="empty" style="display:none;">아직 진단 기록이 없습니다. 📷 촬영부터 시작하세요.</div>
+</main>
+
+<script>
+async function load(){
+  const res = await fetch('/api/history');
+  const rows = await res.json();
+
+  document.getElementById('total').textContent = rows.length;
+  document.getElementById('abnormal').textContent = rows.filter(r => r.status === '이상').length;
+  document.getElementById('pests').textContent = rows.reduce((s,r) => s + r.pest_count, 0);
+
+  const grid = document.getElementById('grid');
+  if (rows.length === 0){ document.getElementById('empty').style.display='block'; return; }
+
+  grid.innerHTML = rows.map(r => {
+    const ok = r.status === '정상';
+    const cls = Object.entries(r.classes).map(([k,v]) => `${k} ${v}`).join(', ') || '해충 없음';
+    return `<div class="item">
+      <img src="/uploads/${r.image}" alt="">
+      <div class="body">
+        <span class="badge ${ok?'ok':'bad'}">${ok?'✅ 정상':'⚠️ 이상'}</span>
+        <div class="time">${r.created_at.replace('T',' ')}</div>
+        <div class="cls">🐛 ${cls}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+load();
+setInterval(load, 5000);  // 5초마다 자동 새로고침
+</script>
+</body>
+</html>
