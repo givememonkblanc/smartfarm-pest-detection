@@ -59,6 +59,23 @@ python3 predict.py --weights runs/detect/pests/weights/best.pt \
 - 분할: train 1,493 / valid 442 / test 213장
 - ⚠️ Aphids 라벨이 압도적으로 많은 **클래스 불균형** 있음 (학습 시 참고)
 
+### 클래스 불균형 보정 (선택)
+
+소수 클래스(Thrips·Whiteflies)가 포함된 train 이미지를 복제해 비율을 보정합니다.
+
+```bash
+python3 prepare_dataset.py --oversample          # 최대 4배 복제
+python3 prepare_dataset.py --oversample --max-dup 3
+```
+
+| 클래스 | 보정 전 | 보정 후 |
+|--------|--------:|--------:|
+| Aphids     | 18,088 | 41,587 |
+| Thrips     |  3,275 | 13,100 |
+| Whiteflies |  4,709 | 18,836 |
+
+> `--oversample` 없이 다시 실행하면 원본(base) 상태로 되돌아갑니다(복제본 자동 정리).
+
 ## 🛠 참고
 
 - GPU 권장. NVIDIA(CUDA)면 그대로 동작, Colab T4 권장.

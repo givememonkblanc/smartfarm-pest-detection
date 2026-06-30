@@ -371,6 +371,26 @@ project/
  ├─ images/    leaf01.jpg ...    <span class="cm"># 테스트 이미지</span>
  └─ results/                     <span class="cm"># 결과 저장 폴더</span></pre>
 
+  <div class="note"><b>📦 실습 데이터셋·코드 받기 (GitHub)</b><br>
+  이번 실습용 해충 탐지 데이터셋(진딧물·총채벌레·가루이)과 학습 코드는 아래 저장소에 있습니다.
+  데이터셋은 용량 때문에 <b>Releases</b> 에 올려두었습니다.<br>
+  🔗 <code class="inline">github.com/givememonkblanc/smartfarm-pest-detection</code></div>
+  <span class="filetag">terminal</span>
+  <pre><span class="cm"># 1) 저장소 클론 (학습 코드 · Colab 노트북 포함)</span>
+git clone https://github.com/givememonkblanc/smartfarm-pest-detection.git
+cd smartfarm-pest-detection
+
+<span class="cm"># 2) 데이터셋 내려받기 (GitHub Release 에셋, 약 116MB)</span>
+curl -L -o Pests.v3i.coco.zip \
+  https://github.com/givememonkblanc/smartfarm-pest-detection/releases/download/v1.0/Pests.v3i.coco.zip
+mkdir -p Pests && unzip -q Pests.v3i.coco.zip -d Pests
+
+<span class="cm"># 3) COCO → YOLO 변환 후 학습</span>
+python prepare_dataset.py
+python train.py</pre>
+  <div class="warn"><b>Colab 사용 시</b> 저장소의 <code class="inline">Pests_YOLO_Colab.ipynb</code> 노트북을 열어
+  위 과정을 셀 단위로 그대로 실행할 수 있습니다. (런타임을 <b>GPU</b>로 변경 권장)</div>
+
   <h3 id="s5-2">5.2 벼 잎 이미지 업로드 및 탐지</h3>
   <span class="filetag">detect.py</span>
   <pre><span class="kw">from</span> ultralytics <span class="kw">import</span> YOLO

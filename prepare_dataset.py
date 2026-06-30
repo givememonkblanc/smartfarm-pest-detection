@@ -11,19 +11,22 @@ Roboflow에서 'COCO'로 내려받은 데이터셋은 split별로
 한 번 더 실행해도 안전(idempotent)하도록 작성했습니다.
 
 사용법:
-    python3 prepare_dataset.py            # 기본 폴더 ./Pests
+    python3 prepare_dataset.py                     # 기본 폴더 ./Pests
     python3 prepare_dataset.py ./Pests
+    python3 prepare_dataset.py --oversample        # 클래스 불균형 보정(train 오버샘플링)
 """
 from __future__ import annotations
 
+import argparse
+import math
 import json
 import shutil
-import sys
 from collections import Counter
 from pathlib import Path
 
 IMG_EXTS = {".jpg", ".jpeg", ".png"}
 SPLITS = ["train", "valid", "test"]
+OVERSAMPLE_TAG = ".os"  # 오버샘플 복제본 파일명 표식 (재실행 시 정리용)
 
 
 def convert_split(split_dir: Path, id2cls: dict[int, int]) -> tuple[int, int]:
@@ -57,6 +60,11 @@ def convert_split(split_dir: Path, id2cls: dict[int, int]) -> tuple[int, int]:
     lbl_out = split_dir / "labels"
     img_out.mkdir(exist_ok=True)
     lbl_out.mkdir(exist_ok=True)
+
+    # 이전 오버샘플 복제본 정리 -> 항상 base 상태에서 시작 (재현성)
+    for d in (img_out, lbl_out):
+        for p in list(d.glob(f"*{OVERSAMPLE_TAG}*")):
+            p.unlink()
 
     # 이미지 이동 (split 폴더 직속 jpg -> images/)
     moved = 0
@@ -103,8 +111,83 @@ def build_class_map(root: Path) -> tuple[dict[int, int], list[str]]:
     return id2cls, names
 
 
+def class_instance_counts(split_dir: Path, nc: int) -> Counter:
+    """split 라벨에서 클래스별 인스턴스(박스) 수를 셈."""
+    cnt = Counter()
+    lbl_dir = split_dir / "labels"
+    if not lbl_dir.exists():
+        return cnt
+    for txt in lbl_dir.glob("*.txt"):
+        for line in txt.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                cnt[int(line.split()[0])] += 1
+    return cnt
+
+
+def oversample_train(split_dir: Path, names: list[str], max_dup: int = 4) -> None:
+    """소수 클래스가 포함된 train 이미지를 복제해 인스턴스 비율을 보정.
+
+    각 클래스 c의 가중치 = target / count_c (target=최다 클래스 수).
+    이미지의 복제 배수 = 그 이미지에 등장하는 클래스들의 가중치 최댓값(올림),
+    단 max_dup 으로 상한. 표준적인 oversampling 기법으로, 데이터가 적은
+    수업용에 적합합니다(완전한 균형은 아니며 소수 클래스 표현을 키웁니다).
+    """
+    img_dir, lbl_dir = split_dir / "images", split_dir / "labels"
+    nc = len(names)
+
+    # 재실행 안전: 이전 오버샘플 복제본(*.osN.*) 먼저 제거
+    removed = 0
+    for d in (img_dir, lbl_dir):
+        for p in list(d.glob(f"*{OVERSAMPLE_TAG}*")):
+            p.unlink()
+            removed += 1
+    if removed:
+        print(f"  [oversample] 기존 복제본 {removed}개 정리")
+
+    before = class_instance_counts(split_dir, nc)
+    if not before:
+        print("  [oversample] 라벨이 없어 건너뜀")
+        return
+    target = max(before.values())
+    weight = {c: target / before.get(c, 1) for c in range(nc)}
+
+    created = 0
+    for lbl in list(lbl_dir.glob("*.txt")):
+        if OVERSAMPLE_TAG in lbl.name:
+            continue
+        classes = {int(l.split()[0]) for l in lbl.read_text().splitlines() if l.strip()}
+        if not classes:
+            continue
+        factor = min(max_dup, math.ceil(max(weight[c] for c in classes)))
+        if factor <= 1:
+            continue
+        # 원본 이미지 찾기
+        img = next((p for p in img_dir.glob(f"{lbl.stem}.*")
+                    if p.suffix.lower() in IMG_EXTS), None)
+        if img is None:
+            continue
+        for k in range(1, factor):  # factor-1 개의 추가 복제본
+            stem = f"{lbl.stem}{OVERSAMPLE_TAG}{k}"
+            shutil.copy(img, img_dir / f"{stem}{img.suffix}")
+            shutil.copy(lbl, lbl_dir / f"{stem}.txt")
+            created += 1
+
+    after = class_instance_counts(split_dir, nc)
+    print(f"  [oversample] 복제 이미지 {created}장 추가")
+    for c in range(nc):
+        print(f"    {names[c]:<12} {before.get(c,0):>6} -> {after.get(c,0):>6}")
+
+
 def main() -> None:
-    root = Path(sys.argv[1] if len(sys.argv) > 1 else "Pests").resolve()
+    ap = argparse.ArgumentParser(description="Roboflow COCO -> YOLO 변환")
+    ap.add_argument("root", nargs="?", default="Pests", help="데이터셋 폴더 (기본 ./Pests)")
+    ap.add_argument("--oversample", action="store_true",
+                    help="train 세트 오버샘플링으로 클래스 불균형 보정")
+    ap.add_argument("--max-dup", type=int, default=4,
+                    help="이미지당 최대 복제 배수 상한 (기본 4)")
+    cli = ap.parse_args()
+
+    root = Path(cli.root).resolve()
     if not root.exists():
         raise SystemExit(f"데이터셋 폴더가 없습니다: {root}")
 
@@ -119,6 +202,12 @@ def main() -> None:
         if split_dir.exists():
             n_img, _ = convert_split(split_dir, id2cls)
             counts[split] = n_img
+
+    if cli.oversample:
+        print("클래스 불균형 보정(train 오버샘플링):")
+        oversample_train(root / "train", names, max_dup=cli.max_dup)
+        counts["train"] = sum(1 for p in (root / "train" / "images").iterdir()
+                              if p.suffix.lower() in IMG_EXTS)
 
     data_yaml = root / "data.yaml"
     yaml_lines = [
