@@ -111,6 +111,17 @@
   footer{padding:34px 48px; text-align:center; color:var(--muted); font-size:14px;}
   .kicker{font-size:13px; letter-spacing:2px; color:var(--accent); font-weight:700; text-transform:uppercase;}
 
+  /* Figures / images */
+  figure{margin:18px 0;}
+  figure img{display:block; width:100%; height:auto; border-radius:12px; border:1px solid var(--line);
+    box-shadow:0 2px 8px rgba(0,0,0,.07);}
+  figcaption{font-size:13px; color:var(--muted); margin-top:8px; text-align:center;}
+  .imgrow{display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin:16px 0;}
+  .imgrow figure{margin:0;}
+  .legend{display:flex; flex-wrap:wrap; gap:14px; margin:10px 0 4px; font-size:14px;}
+  .legend span{display:inline-flex; align-items:center; gap:7px;}
+  .legend i{width:16px; height:16px; border-radius:4px; display:inline-block;}
+
   @media(max-width:980px){
     nav.toc{display:none;}
     section,header.hero,footer{padding-left:24px; padding-right:24px;}
@@ -253,6 +264,11 @@
   </div>
   <div class="warn"><b>유의:</b> 이런 변동성 때문에 같은 모델도 이미지에 따라 신뢰도가 크게 달라집니다. 그래서 <strong>신뢰도 기준 설정</strong>과 <strong>결과 검증</strong>이 중요합니다.</div>
 
+  <figure>
+    <img src="assets/preview_grid.jpg" alt="해충 데이터셋 원본 이미지 예시 6장">
+    <figcaption>▲ 실제 실습 데이터셋(해충) 원본 예시 — 조명·배경·거리·해충 밀도가 제각각인 것을 볼 수 있습니다.</figcaption>
+  </figure>
+
   <h3 id="s2-2">2.2 정지 이미지와 영상 데이터의 차이</h3>
   <table>
     <tr><th>구분</th><th>정지 이미지 탐지</th><th>실시간 영상 탐지</th></tr>
@@ -288,6 +304,16 @@
     <li><strong>클래스 예측</strong> — 그 박스가 어떤 병해인지 (예: leaf_blast)</li>
     <li><strong>신뢰도 점수(confidence)</strong> — 그 예측을 얼마나 확신하는지 (0~1)</li>
   </ul>
+
+  <figure>
+    <img src="assets/detect_example.jpg" alt="해충 객체 탐지 예시 — 바운딩박스와 클래스 라벨">
+    <figcaption>▲ 객체 탐지 예시 — 객체마다 <b>박스 + 클래스명</b>이 함께 표시됩니다. (색=클래스, 실제 학습 데이터의 정답 라벨로 시연)</figcaption>
+  </figure>
+  <div class="legend">
+    <span><i style="background:#2ea043"></i> Aphids (진딧물)</span>
+    <span><i style="background:#ff8f00"></i> Thrips (총채벌레)</span>
+    <span><i style="background:#2176dc"></i> Whiteflies (가루이)</span>
+  </div>
 
   <h3 id="s3-2">3.2 YOLO 기반 탐지 방식</h3>
   <p><strong>YOLO</strong>(You Only Look Once)는 이미지를 한 번만 보고 모든 객체를 동시에 찾아내는 빠른 객체 탐지 모델 계열입니다. 속도가 빨라 스마트팜·로봇·실시간 영상에 널리 쓰입니다.</p>
@@ -390,6 +416,24 @@ python prepare_dataset.py
 python train.py</pre>
   <div class="warn"><b>Colab 사용 시</b> 저장소의 <code class="inline">Pests_YOLO_Colab.ipynb</code> 노트북을 열어
   위 과정을 셀 단위로 그대로 실행할 수 있습니다. (런타임을 <b>GPU</b>로 변경 권장)</div>
+
+  <h4>데이터셋 클래스 미리보기 (3종)</h4>
+  <div class="imgrow">
+    <figure>
+      <img src="assets/class_aphids.jpg" alt="Aphids 예시">
+      <figcaption><b style="color:#2ea043">Aphids</b> · 진딧물</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/class_thrips.jpg" alt="Thrips 예시">
+      <figcaption><b style="color:#ff8f00">Thrips</b> · 총채벌레</figcaption>
+    </figure>
+    <figure>
+      <img src="assets/class_whiteflies.jpg" alt="Whiteflies 예시">
+      <figcaption><b style="color:#2176dc">Whiteflies</b> · 가루이</figcaption>
+    </figure>
+  </div>
+  <div class="note">데이터셋 구성: <b>train 1,493 · valid 442 · test 213장</b>. Aphids 라벨이 가장 많은 <b>클래스 불균형</b>이 있어,
+  필요 시 <code class="inline">python prepare_dataset.py --oversample</code> 로 소수 클래스를 보강할 수 있습니다.</div>
 
   <h3 id="s5-2">5.2 벼 잎 이미지 업로드 및 탐지</h3>
   <span class="filetag">detect.py</span>
