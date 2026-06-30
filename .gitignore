@@ -11,8 +11,9 @@ runs/
 !weights/
 !weights/*.pt
 
-# === 강의 슬라이드 (레포에 올리지 않음) ===
+# === 강의 슬라이드·자료 (레포에 올리지 않음) ===
 slides/
+assets/
 
 # === 앱 런타임 산출물 ===
 app/data.db
